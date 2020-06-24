@@ -1,0 +1,45 @@
+Metadata-Version: 1.1
+Name: clouds
+Version: 0.1
+Summary: UNKNOWN
+Home-page: UNKNOWN
+Author: Nima Vakili, Michael Habeck
+Author-email: mhabeck@gwdg.de
+License: MIT
+Description: # Clouds #
+        
+        This package implements a reconstruction algorithm that takes projected point clouds (in 1d or 2d) as input and finds a Gaussian mixture model representing the object (in 2d or 3d) and the unknown projection directions along which the observed point clouds have been projected.
+        
+        ### How do I get set up? ###
+        
+        * Call
+        
+        python setup.py install --prefix=${HOME}
+        
+        for local installation, and
+        
+        sudo python setup.py install
+        
+        for global installation.
+        
+        * Dependencies: numpy, scipy, matplotlib, csb
+        
+        * To run tests, go to "tests/" directory and run various test scripts
+        
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Scientific/Engineering :: Physics
+Classifier: Topic :: Software Development :: Libraries
+Requires: numpy
+Requires: scipy
+Requires: csb

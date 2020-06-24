@@ -1,0 +1,268 @@
+\documentclass[11pt]{article}
+
+\usepackage{geometry}
+\geometry{a4paper}
+
+\usepackage{graphicx} 
+\usepackage{natbib} 
+\usepackage{amsmath,amsthm,amssymb,latexsym,amsfonts}
+\usepackage{bm}
+\usepackage{sectsty} 
+\usepackage{color}
+
+\sectionfont{\sffamily\bfseries\upshape\large}
+\subsectionfont{\sffamily\bfseries\upshape\normalsize}
+\subsubsectionfont{\sffamily\em\upshape\normalsize}
+
+\newcommand{\KL}[2]{D(#1\|#2)}
+\newcommand{\hide}[1]{{}}
+\newcommand{\innerprod}[2]{{#1}^\mathrm{T}{#2}}
+\newcommand{\outerprod}[2]{{#1}{#2}^\mathrm{T}}
+\newcommand{\covariance}[1]{\mathrm{cov}(#1)}
+\newcommand{\features}{\bm{f}}
+\newcommand{\state}{\bm{x}}
+\newcommand{\population}{\bm{X}}
+\newcommand{\trace}{\mathrm{tr}}
+\newcommand{\params}{\bm{\lambda}}
+\newcommand{\protocol}{\bm{\Lambda}}
+\newcommand{\gradient}{\bm{\partial}}
+
+\renewcommand{\innerprod}[2]{\langle{#1}|{#2}\rangle}
+\renewcommand{\outerprod}[2]{|{#1}\rangle\langle{#2}|}
+
+\renewcommand{\innerprod}[2]{{#1}^{\bm{\prime}}\!{#2}}
+\renewcommand{\outerprod}[2]{{#1}{#2}^{\bm{\prime}}}
+
+\begin{document}
+
+\noindent\textsf{\textbf{\Large Gibbs Sampling algorithm for GMM with unknown Rotation}}
+
+\vspace*{1cm}\noindent{\sffamily\bfseries Michael Habeck $^{1,2}$, Nima~Vakili$^{2}$}\\
+
+\noindent{\sffamily\footnotesize%
+%
+\textbf{1-} Statistical Inverse Problems in Biophysics, Max Planck Institute for Biophysical Chemistry, Am Fassberg 11, 37077 G\"ottingen, Germany\\
+\textbf{2-} Felix Bernstein Institute for Mathematical Statistics in the Biosciences, Georg August University G\"ottingen, Germany}
+%
+\\ \\
+
+\section*{Computing posterior by using conditional and prior states}
+The full posterior for Gibbs sampler is:
+\begin{equation*}
+p(\theta,Z | D)\propto p(D,Z|\theta)p(\theta)
+\end{equation*}
+where the full likelihood would be:
+\begin{equation*}
+p(D,Z|\theta)=p(x,z|\mu,\tau,\omega,R)
+\end{equation*}
+and 
+\begin{equation*}
+p(\theta)\propto p(\mu|\tau)p(\tau)p(\omega)p(R)
+\end{equation*}\\\\
+First we have to compute the whole priors.\\
+Prior for the means is: \\
+\begin{eqnarray*}
+p(\mu|\tau) \propto \prod_{k=1}^K p(\mu_k|\tau) &=& \prod_{k=1}^K N(\mu_k|\mu_0,\tau\tau_0I) \\
+&=& \prod_{k=1}^K\frac{\tau\tau_0}{2\pi}^{\frac{D+1}{2}}\exp{(\frac{-\tau\tau_0(\mu_k-\mu_0)^2}{2})}
+\end{eqnarray*}
+and prior for precision is: \\
+\begin{eqnarray*}
+p(\tau|\alpha_0,\beta_0)=\frac{\beta_0^{\alpha_0}}{\Gamma(\alpha_0)}\alpha^{\alpha_0-1}\exp(-\beta_0\tau)
+\end{eqnarray*}
+prior for latent variables is:
+\begin{eqnarray*}
+p(z|\omega)=\prod_k^K\omega_k^{-z}
+\end{eqnarray*}
+prior for weights is:
+\begin{eqnarray*}
+p(\omega|\omega_0)=\prod_{k=1}^K\omega_k^{ \omega_0-1}
+\end{eqnarray*}
+and finally we set the prior for rotations to constant parameter $ p(R)=1$ .
+\\\\
+Now we have to compute the conditional posteriors for each of the components.\\
+For the latent variable we have:
+\begin{eqnarray*}
+p(z|x,\mu,\tau,\omega,R)  &\propto &  p(x|z,\mu,\tau,R)p(z|\omega) \\ 
+ &\propto & \prod_{ink} N(x_{ik}|P(R_i\mu_k),\tau^{-1}I)^{\beta z_{ink}}\prod_{ink}\omega^{z_{ink}} \\ 
+&=& \prod_{ink}[\omega_kN(x_{ik}|P(R_i\mu),\tau^{-1}I]^{\beta z_{ink}}=\prod_{in}p(z_{in}|x_{ik},\mu,\tau,\omega,R) 
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+p(z_{in}|x_{in},\mu,\tau,\omega,R)  &\propto & \prod_{k} [\omega_k N(x|P(R\mu_k),\tau^{-1}I)]^\beta  \\
+&=& \frac{\prod_{k} [\omega_k N(x|P(R\mu_k),\tau^{-1}I)]^\beta }{\sum_{k} [\omega_k N(x_i|P(R\mu_k),\tau^{-1}I)]^\beta }
+\end{eqnarray*} 
+The next parameter is weights:
+\begin{eqnarray*}
+p(\omega | x,z,\mu,\tau,R) &\propto& p(x,z|\omega) p(\omega) \\
+&\propto& \prod_{ik}\omega_k^{z_{ik}}\cdot\prod_kw_k^{\alpha_0-1}
+\end{eqnarray*}
+and for the means we have:
+\begin{eqnarray*}
+p(\mu|\omega,z,\tau,R) &\propto & p(x,z| \mu,\tau,R)p(\mu | \tau)\\
+&\propto & \prod_{ink}N(x_{in} | R_i\mu_k, \tau^{-1}I)^{\beta z_{ink}}\cdot \prod_kN(\mu_k | \mu_0, \tau_0^{-1} \tau^{-1}I)\\
+& =& \prod_kp(\mu_k|x,z,\tau,R)
+\end{eqnarray*}
+where
+\begin{equation*}
+p(\mu_k|x,z,\tau,R) \propto \prod_{ink}N(x_{in}|R_i\mu_k,\tau^{-1}I)^\beta  \cdot N(\mu_k|\mu_0,\tau_0^{-1}\tau^{-1}I)
+\end{equation*} 
+%from paper...
+likelihood for $\mu$ :
+\begin{eqnarray*}
+\mu_k &\propto & \exp(-\frac{\beta \tau}{2} \sum_{in}z_{ink}\|X_{in}-PR_i\mu_k\|^2) \\
+&=& \exp(const + \sum_{in} -\frac{\beta \tau}{2} z_{ink}\|PR_i\mu_k\|^2 + \sum_{in}{\beta \tau}z_{ink}X_{in}^TPR_i\mu_k )\\
+&=& \exp( \mu_k^T[\sum_{in}-\frac{\beta \tau}{2}z_{ink}R_i^{T}P^TPR_i]\mu_k+\mu_k^T\sum_{in}{\beta \tau}z_{ink}R_i^TP^TX_{in})
+\end{eqnarray*}
+we set: 
+\begin{equation*}
+A_k=\beta \sum_iN_{ik}(PR_i)^T(PR_i), \qquad N_{ik}=\sum_n z_{ink}, \qquad  b_k=\beta \sum_{in}z_{ink}R_i^TP^TX_{in}
+\end{equation*} 
+and the posterior is:
+\begin{eqnarray*}
+\mu_k &\propto & \exp(-\frac{\tau}{2}[\mu_k^TA_k\mu_k-2\mu_k^Tb_k]-\frac{\tau\tau_0}{2}\|\mu_k-\mu_0\|^2) \\
+\tilde{A_k} &=& A_k+\tau_0I\\
+\tilde{b_k} &=& b_k+\tau_0\mu_0 \\
+\mu_k &\propto & \exp(-\frac{\tau}{2}[\mu_k^T\tilde{A_k}\mu_k-2\mu_k^T\tilde{b_k}])\\
+\Sigma &=& \tilde{A}_k^{-1}, \qquad \mu=\Sigma \tilde{b_k}
+\end{eqnarray*}
+and for computing precision we have:
+\begin{eqnarray*}
+p(\tau|\mu,\omega,Z,R,D) &\propto & p(D,Z|\mu,\omega,R)p(\mu|\tau)p(\tau) \\ 
+&\propto & \tau^\frac{Nd}{2}\exp(\frac{-\beta \tau}{2}\sum_{ink}z_{ink}\|x_{in}-PR_i\mu_k\|^2)\\
+&\cdot & \tau^\frac{k(d+1)}{2} \exp(-\frac{\tau\tau_0}{2}\sum_k\|\mu_k-\mu_0\|^2)\\
+&\cdot & \tau^{\alpha_0-1}\exp(-\beta_0\tau)
+\end{eqnarray*}
+by taking the logarithm on both sides:
+\begin{eqnarray*}
+\log{p(\tau|\mu,\omega,z,R,D)} &=& \sum_{i=1}^N\sum_{k=1}^K \beta z_{ik}\log {\left[ {\frac{\tau}{2\pi}}^\frac{d}{2}\|x_i-PR\mu_k\|^2\right] }+(\alpha_0+1)\log\tau-\beta_0\tau \\
+&+& \sum_{k=1}^K\log{\tau^{\frac{d+1}{2}}}-\sum_{k=1}^K\frac{\tau\tau_0}{2}\|\mu_k\|^2 \\
+&=& \frac{\beta dN}{2}\log{}\tau-\frac{\tau}{2}\sum_{n=1}^N\sum_{k=1}^K \beta z_{ik}\|x_i-PR_i\mu_k\|^2+(\alpha_0-1)\log{\tau}-\beta_0\tau \\
+&+& \frac{dK}{2}\log{\tau}-\tau\tau_0\sum_{k=1}^K\|\mu_k\|^2 \\
+&=& \left[\frac{\beta dN+(d+1)K}{2}+\alpha_0-1\right]\log\tau-\left[\frac{1}{2}\sum_{n=1}^N\sum_{k=1}^K \beta z_{ik}\|x_i-PR\mu_k\|^2+\beta_0-\tau_0\sum_{k=1}^K\|\mu\|^2 \right] \tau \\
+&=& (\tilde{a}-1)\log\tau-\tilde{b}\tau
+\end{eqnarray*}
+which implies that:
+\begin{equation*}
+p(\tau|\mu,\omega,z,R,D)=Gamma(\tau| \tilde{a}, \tilde{b})
+\end{equation*}
+where
+\begin{equation*}
+2\tilde{a}=2\alpha_0+\beta dN+(d+1)K \\
+\end{equation*}
+\begin{equation*}
+2\tilde{b}=2\beta_0+\sum_{i=1}^N\sum_{k=1}^K \beta z_{ik}\|x_i-PR\mu_k\|^2+\tau\sum_{k=1}^K|\mu_k\|^2
+\end{equation*}
+and finally the rotations:
+\begin{eqnarray*}
+p(R|x,z,\mu,\tau,\omega) &\propto & p(x,z|\mu,\tau,\omega,R)p(R)\\
+&\propto & \prod_{ink}[\omega_kN(x_{in}|R_i,\mu_k,\tau^{-1}I)]^{\beta z_{ink}}\\
+&=& \prod_{i}p(R_i|x,z,\mu,\tau,\omega)
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+p(R_i|x,z,\mu,\tau,\omega) &\propto & \exp(-\frac{\tau}{2}\sum_{nk} \beta z_{ink}\|x_{in}-PR_i\mu_k\|^2)\\
+& \propto & \exp(\tau tr([\sum_{nk}\beta z_{ink}\mu_kx_{in}^TP]R_i))-\frac{\tau}{2}tr(\sum_{n,k} \beta z_{ink}\mu_k\mu_k^TR_i^TP^TPR_i)\\
+A_i&=& \tau\sum_{nk}\beta z_{ink}\mu_kx_{in}^TP\\%=\sum_k(\sum_nx_{in}^T \beta z_{ink})\mu_k\\
+C &=& P^TP\\
+B_i &=& -\frac{\tau}{2}\sum_{nk}\beta z_{ink}\mu_k\mu_k^T=-\frac{\tau}{2}\sum_{k}\beta N_{ik}\mu_k\mu_k^T\\
+\end{eqnarray*}
+where
+\begin{equation*}
+ N_{ik}=\sum_nz_{ink}
+\end{equation*}
+you can find the numerical computational process for the rotations in appendix. \\
+General form of the likelihood for GMM:
+\begin{equation*}
+p(D|\mu,\tau,\omega,R) = \prod_{n=1}^N\sum_{k=1}^k\omega_kN(x_n|PR\mu_k,\tau)
+\end{equation*}
+The Augmented likelihood is:
+\begin{eqnarray*}
+p(D|\mu,\tau,z,R) &=& \prod_n\prod_k[N(X_n|\mu_k,\tau)]^{\beta z_{nk}}\\
+p(z|\omega) &=& \prod_nM(z_n|1,\omega)=\prod_n\prod_k\omega^{z_{nk}}\delta(1-\sum_kz_{nk})
+\end{eqnarray*}
+ [ if we set, $\omega_k=\frac{1}{K} $, \quad we will have:
+\begin{eqnarray*}
+\log{p(z|\omega)}&=&\sum_n\sum_kz_{nk}\log{w_k} \\
+&=&\log{\omega}\sum_n\sum_kz_{nk} \\
+&=&N\log{\omega}=-N\log{K}]
+\end{eqnarray*}  
+\begin{eqnarray*}
+M(n|N,P) &=& (\frac{{N!}}{n_{1!},...,n_{k!}}\prod_kP_k^{n_k}\delta(N-\sum_kn_k)) \\
+p(D|\mu,\tau,\omega,R) &=& \sum_zp(D|\mu,\tau,z,R)p(z|w)\\
+p(D,z|\mu,\tau,\omega,R) &=& p(D|\mu,\tau,z,R)p(z|\omega)\\
+\end{eqnarray*}
+The likelihood and the priors in total:
+\begin{equation*}
+\left[p(D|\mu,\tau,z,R)p(z|\omega)\right]\left[p(\omega|\omega_0)\prod_kp(\mu_k|\mu_0,\tau_0,\tau)p(\tau|\alpha,\beta)p(R)\right]
+\end{equation*}
+
+\section{Appendix}
+Computation of the Rotations :
+\begin{eqnarray*}
+tr(BR^TCR)+tr(AR)
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+B^T &=& B, \qquad -B>0, \qquad X^T(-B)X\geq0 \\
+-B &=& U\Lambda U^T \\
+\Lambda &=& \begin{bmatrix}\lambda_1 & 0 &0 \\0 & \lambda_2 &0 \\ 0 &0 & \lambda_3\end{bmatrix}
+\end{eqnarray*}
+and
+\begin{eqnarray*}
+ \lambda_i\geq0, \qquad U^TU=UU^T=I_{3\times3} 
+\end{eqnarray*}
+so we have:
+\begin{eqnarray*}
+-tr(BR^TCR)+tr(AR)&=&tr(U\Lambda U^TR^TCR)+tr(ARUU^T) \\
+&=&tr(\Lambda (RU)^TC(RU))+tr((U^TA)(RU)) \\
+&=&tr(\Lambda \tilde{R}^TC\tilde{R})+tr(\tilde{A}\tilde{R}) \\
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+\tilde{R}=RU, \qquad \tilde{A}=U^TA 
+\end{eqnarray*}
+and  
+\begin{eqnarray*}
+\tilde{R}^T\tilde{R}=I 
+\end{eqnarray*}
+and 
+\begin{eqnarray*}
+C=P^TP=\begin{bmatrix}1 & 0 &0 \\ 0 & 1 & 0 \\ 0&0&0 \end{bmatrix}=I-e_3e_3^T 
+\end{eqnarray*}
+\begin{eqnarray*}
+tr(\Lambda \tilde{R}^T(I-e_3e_3^T)\tilde{R}) &=& tr(\Lambda)-tr(\Lambda\tilde{R}^Te_3e_3^T\tilde{R}) \\
+&=&tr(\Lambda)-e_3^T\tilde{R}\lambda\tilde{R}^Te_3 \\
+&=&tr(\Lambda)-\tilde{r}_3^T\Lambda\tilde{r}_3 
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+ \tilde{r}_i &=& \tilde{R}^Te_i, \qquad \tilde{r}_i\in R^3 \\
+tr(AR) &=& tr(\tilde{A}\tilde{R}) 
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+ \tilde{A} &=& U^TA, \qquad A=D_{3\times2}P_{2\times3} \\
+D &=& \tau\sum_{nk}z_{ink}\mu_kX_{in}^T \\
+\tilde{A} &=& U^TDP, \qquad \tilde{D}=U^TD\\
+\tilde{A} &=& \tilde{D}P 
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+ P &\in & R^{2\times3}, \qquad D\in R^{3\times2} \\
+tr(AR) &=& tr(\tilde{D}P\tilde{R}) \\
+P\tilde{R} &=& \begin{bmatrix}1 & 0&0 \\ 0 & 1&0 \\ \end{bmatrix}\left(\begin{array}{c}\tilde{r_1}^T\\ \tilde{r_2}^T \\ \tilde{r_3}^T\end{array}\right)=\left(\begin{array}{c}\tilde{r_1}^T\\ \tilde{r_2}^T \\ \end{array}\right) \in R^{2\times3} \\
+\tilde{D}^T &=& \left(\begin{array}{c}\tilde{d_1}^T\\ \tilde{d_2}^T \\ \end{array}\right) \\
+tr(AR) &=& tr(\tilde{D}\left(\begin{array}{c}\tilde{r_1}^T\\ \tilde{r_2}^T \\ \end{array}\right))=\tilde{d_1}^T\tilde{r_1}^T+\tilde{d_r}^T\tilde{r_2}^T 
+\end{eqnarray*}
+so finally we have:
+\begin{eqnarray*}
+-tr(BR^TCR) &+& tr(AR) \\
+&=& tr\Lambda-\tilde{r_3}^T\Lambda\tilde{r_3}+\tilde{d_1}^T\tilde{r_1}^T+\tilde{d_2}^T\tilde{r_2}^T 
+\end{eqnarray*}
+subject to,
+\begin{eqnarray*}
+ \tilde{r_i}\bot\tilde{r_j}
+\end{eqnarray*}
+
+
+\end{document}
